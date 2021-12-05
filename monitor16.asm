@@ -445,7 +445,12 @@ DELAS:	PUSH	B
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;ISTAT -- Get input device status
 ;
+;Compatible with Processor Technology software.
+;
+;Falls through to ISTAT if a character is available.
+;
 ;post: Z flag clear if data available
+;post: A register contains character if available
 ;post: Z flag set if data not available
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ISTAT:	CALL	CHKST		;GET STATUS
