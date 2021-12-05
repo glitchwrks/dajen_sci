@@ -26,3 +26,8 @@ mondiff.diff
 ------------
 
 Actual diff of the output from assembling the Dajen source and the ROM dump.
+
+dajen2bin.rb
+------------
+
+Simple Ruby script to convert the output from the Dajen monitor's `D` command to a binary file. See also `dajen2bin_sample_input.txt`.
