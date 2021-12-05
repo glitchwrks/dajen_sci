@@ -1,0 +1,26 @@
+diff --git a/dajen.dump b/mon_trimmed.dump
+index 8f6f33b..94f5e88 100644
+--- a/dajen.dump
++++ b/mon_trimmed.dump
+@@ -61,7 +61,7 @@
+ 000003c0  d3 cd 96 d3 c9 cd 58 d2  fe 1b c0 21 bd d7 c3 05  |......X....!....|
+ 000003d0  d5 db d2 e6 01 c2 1a d4  db d2 f6 01 d3 d2 3e 32  |..............>2|
+ 000003e0  d3 db 3a c7 df d3 d8 3a  c8 df d3 d8 cd c5 d3 db  |..:....:........|
+-000003f0  d2 b7 f2 ec d3 cd 3e d2  db d2 00 30 00 11 00 00  |......>....0....|
++000003f0  d2 b7 f2 ec d3 cd 3e d2  db d2 b7 f2 ec d3 3e 80  |......>.......>.|
+ 00000400  d3 de 3e b8 d3 df 3e 82  d3 de 3e 70 d3 df 3e 81  |..>...>...>p..>.|
+ 00000410  d3 de 3e e6 d3 df 3e 03  d3 de cd c5 d3 db de b7  |..>...>.........|
+ 00000420  f2 1a d4 db df c9 cd d1  d3 06 00 6f 47 cd 1a d4  |...........oG...|
+@@ -121,9 +121,8 @@
+ 00000780  68 0b d5 6b cd d4 78 20  d7 80 ff d1 93 a7 d4 94  |h..k..x ........|
+ 00000790  cd d4 96 cd d4 a3 68 d4  a6 ad d4 98 c6 d6 aa 3f  |......h........?|
+ 000007a0  d6 ab 53 d6 af 49 d6 b0  20 d5 bb 65 d5 bc cd d4  |..S..I.. ..e....|
+-000007b0  be cd d4 d0 f5 d4 f0 e8  03 35 05 0d 00 45 53 43  |.........5...ESC|
++000007b0  be cd d4 d0 f5 d4 f0 59  02 20 03 70 04 45 53 43  |.......Y. .p.ESC|
+ 000007c0  41 50 c5 57 52 49 54 54  45 ce 20 20 43 4f 4d 50  |AP.WRITTE.  COMP|
+ 000007d0  4c 45 54 c5 56 45 52 49  46 59 a0 54 41 50 45 20  |LET.VERIFY.TAPE |
+-000007e0  20 45 52 52 4f 52 a0 0d  0a 3e a0 ff ff ff ff ff  | ERROR...>......|
+-000007f0  ff ff ff ff ff ff ff ff  ff ff ff ff ff df ff df  |................|
+-00000800
++000007e0  20 45 52 52 4f 52 a0 0d  0a 3e a0                 | ERROR...>.|
++000007eb
