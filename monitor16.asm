@@ -1,4 +1,18 @@
-;*******SCI MONITOR VERSION 1.6*******
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;MONITOR16 -- Dajen SCI ROM Monitor v1.6
+;
+;This is a cleaned up version of the Dajen SCI ROM monitor,
+;version 1.6. The original source was typed in from the SCI
+;manual, and is available essentially unedited in
+;MONITOR16.ORIG
+;
+;Glitch Works, LLC modifications are released under the
+;GNU GPL v3, see LICENSE and GPL-3.0 in project root.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Monitor Equates
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 PORT	EQU	0D0H		;PORT LOCATION
 STACK	EQU	0DFC0H		;STACK LOCATION
 STK0	EQU	STACK+4		;INP DEV CODE
@@ -30,11 +44,16 @@ PORTC	EQU	PORT+12		;UART CONTROL
 PORTD	EQU	PORT+13		;UART DATA
 PORTE	EQU	PORT+14		;CASS SSDA CONT
 PORTF	EQU	PORT+15		;CASS SSDA DATA
-;**CODE STARTS HERE**
 	
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Default ROM start address is 0xD000.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	ORG	0D000H		;Staring address
 
-SCI	JMP	INIT		;INIT PORTS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SCI -- Standard jump table
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SCI:	JMP	INIT		;INIT PORTS
 	JMP	INPUT		;INPUT
 	JMP	WRITE		;WRITE
 	JMP	CASR0		;CASS INPUT
@@ -47,7 +66,11 @@ SCI	JMP	INIT		;INIT PORTS
 	JMP	INPM		;INP MASKED
 	JMP	WRITB		;B OUT
 	JMP	ICHAR		;ESCAPE
-INIT	LXI	SP, STACK	;SET STACK
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;INIT -- Cold start initialization routine
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+INIT:	LXI	SP, STACK	;SET STACK
 	MVI	A, 0CH		;ERASE VIDEO
 	CALL	VDM+1
 	MVI	A, 30H		;INIT PARALLEL PORTS
@@ -58,7 +81,6 @@ INIT	LXI	SP, STACK	;SET STACK
 	OUT	PORTB		;CLOCK REG
 	SUB	A		;SET INPUT PORTS
 	OUT	PORT4
-;end of page 1
 	OUT	PORT0		;PAR IN
 	MVI	A, 00		;RESET VDM
 	OUT	0C8H
@@ -73,7 +95,7 @@ INIT	LXI	SP, STACK	;SET STACK
 	OUT	PORT1		;2C=NEG STROBE
 	OUT	PORT3		;2E=POS STROBE
 	OUT	PORT7
-INIT1	LXI	D, STK0		;SW ON= K AND V
+INIT1:	LXI	D, STK0		;SW ON= K AND V
 	MVI	B, 07H		;KEYBD-VID
 	IN	PORT2		;SW OFF=SERIAL
 	RLC			;IN AND OUT
@@ -89,9 +111,9 @@ INIT1	LXI	D, STK0		;SW ON= K AND V
 	ANI	02H		;MASK SW
 	ADI	2CH		;ADD FOR STR
 	OUT	PORT5		;SET STROBE POL
-;**STROBE. SW ON=NEG, SW OFF=POS**
+				;STROBE SW ON=NEG, SW OFF=POS
 	LXI	H, TABL2	;SET OTHER OPTIONS
-INIT2	INX	D
+INIT2:	INX	D
 	MOV	A, M		;GET DATA
 	STAX	D
 	INX	H
@@ -113,17 +135,26 @@ INIT2	INX	D
 	INX	D
 	LDAX	D
 	OUT	PORTA
-STRT	LXI	H, STK17	;INITIALIZE INPUT BUFFER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;STRT -- Start of command processor
+;
+;Fall through to COMMD.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+STRT:	LXI	H, STK17	;INITIALIZE INPUT BUFFER
 	MVI	M, 0DH
 	INX	H
 	SUB	A
 	CMP	L
-;end of page 2
 	JNZ	STRT+3
 	LXI	SP, STACK
 	LXI	H, CMNT0
 	CALL	COMNT		;INITIAL COMMENT
-COMMD	MVI	C, 28H		;BUFF LENG
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;COMMD -- Actual command processor
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+COMMD:	MVI	C, 28H		;BUFF LENG
 	LXI	H, STK17
 	CALL	INPM		;GET COMMAND
 	CPI	08H		;A BACKSPACE?
@@ -140,7 +171,13 @@ COMMD	MVI	C, 28H		;BUFF LENG
 	DCR	C		;END OF INPUT BUFFER?
 	JNZ	COMMD+5		;NO, LOOP
 	JMP	ERROR		;YES, TOO MUCH
-DELET	MOV	A, C
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;DELET -- Delete a character from the buffer
+;
+;This routine handles BS, RUBOUT, and ESC.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DELET:	MOV	A, C
 	CPI	28H		;END OF BUFFER?
 	JZ	COMMD		;YES, RETURN
 	INR	C		;NO, INCREMENT C
@@ -149,7 +186,11 @@ DELET	MOV	A, C
 	MVI	A, 08H		;A BACKSPACE
 	CALL	WRITE
 	JMP	COMMD+5
-CHCK	MOV	A, M		;GET CHARACTER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;CHCK -- Character check
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CHCK:	MOV	A, M		;GET CHARACTER
 	INX	H		;POINT NEXT
 	SUI	20H		;A SPACE?
 	RZ
@@ -160,7 +201,13 @@ CHCK	MOV	A, M		;GET CHARACTER
 	JC	ERROR		;NO
 	INR	A
 	RET
-CMD1	LXI	H, STK17	;START OF INPUT BUFFER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;CMD1 -- Execute command
+;
+;This routine looks up a command in the command table TABL1.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CMD1:	LXI	H, STK17	;START OF INPUT BUFFER
 	CALL	CRLF		;RET AND LINE FEED
 	CALL	CHCK		;CHECK FIRST LETTER
 	RAL			;MULTIPLY BY 8
@@ -174,22 +221,25 @@ CMD1	LXI	H, STK17	;START OF INPUT BUFFER
 	SHLD	STK13		;SAVE POINTER
 	MVI	C, 0E4H		;COMD COUNT
 	LXI	H, TABL1	;COMMAND LOOK-UP TABLE
-CMD2	CMP	M		;FIND IT?
+CMD2:	CMP	M		;FIND IT?
 	JZ	CMD3		;YES
 	INX	H		;NO
 	INX	H
-;end of page 3
 	INX	H
 	INR	C		;INCREMENT COMMAND COUNTE
 	JZ	ERROR		;COULDN'T FIND IT
 	JMP	CMD2		;LOOP
-CMD3	INX	H		;GET ADDRESS OF COMMAND
+CMD3:	INX	H		;GET ADDRESS OF COMMAND
 	MOV	E, M		;SAVE IT IN D AND E
 	INX	H
 	MOV	D, M
 	XCHG			;PLADE DE IN HL
 	PCHL			;PLACE HL IN PC AND GO
-CONV0	PUSH	H		;SAVE HL
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;CONV0 -- Convert a character
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CONV0:	PUSH	H		;SAVE HL
 	LXI	D, 0000H	;ZERO DE
 	LHLD	STK13		;GET POINTER TO BUFFER
 	MOV	A, M
@@ -202,7 +252,7 @@ CONV0	PUSH	H		;SAVE HL
 	JZ	CONV1		;YES
 	INX	H		;INCREMENT POINTER
 	JMP	CONV0+13	;LOOP
-CONV1	INX	H		;INCREMENT POINTER
+CONV1:	INX	H		;INCREMENT POINTER
 	SHLD	STK13		;SAVE POINTER
 	DCX	H		;GET CHARACTER
 	CALL	CONV2		;GET LOWER NIBBLE
@@ -225,20 +275,19 @@ CONV1	INX	H		;INCREMENT POINTER
 	MOV	D, A
 	POP	H
 	RET
-CONV2	DCX	H		;GET DATA
+CONV2:	DCX	H		;GET DATA
 	MOV	A, M
 	CPI	20H		;DONE?
 	JNZ	CONV3		;NO
 	POP	H		;GET RID OF LAST CALL
 	POP	H
 	RET
-CONV3	CALL	CONV4		;CONVERT
+CONV3:	CALL	CONV4		;CONVERT
 	JC	ERROR		;CARRY SET
 	CPI	10H		;A NUMBER?
 	JNC	ERROR		;NO
 	RET
-CONV4	SUI	30H		;ASC BIAS
-;end of page 4
+CONV4:	SUI	30H		;ASC BIAS
 	RC			;NOT LET OR NUM
 	CPI	0AH
 	CMC
@@ -251,13 +300,26 @@ CONV4	SUI	30H		;ASC BIAS
 	RC			;NO GOOD
 	SUI	07H		;A LETTER
 	RET
-LCL	SUI	20H		;CONV LOW TO UP
+LCL:	SUI	20H		;CONV LOW TO UP
 	CPI	2BH		;NOT LET ?
 	RET
-GO	CALL	CONV0		;GET ADDRESS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;GO -- Go command handler
+;
+;Get an address from the input buffer and transfer control
+;to it.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+GO:	CALL	CONV0		;GET ADDRESS
 	XCHG			;PUT IN HL
 	PCHL			;PUT IN PC AND GO
-EM0	CALL	CONV0		;GET ADDRESS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;EM0 -- Edit memory command handler
+;
+;Enter here for the "full version."
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+EM0:	CALL	CONV0		;GET ADDRESS
 	XCHG			;SAVE IN HL
 	CALL	RTHL		;WRITE ADDRESS
 	MOV	A, M
@@ -270,14 +332,14 @@ EM0	CALL	CONV0		;GET ADDRESS
 	CPI	08H		;A BACKSPACE?
 	JZ	EM2		;YES
 	CALL	EM4
-EM1	MOV	A, M		;GET MEM BYTE
+EM1:	MOV	A, M		;GET MEM BYTE
 	CALL	RTHEX		;WRITE IT
 	INX	H
 	CALL	CRLF
 	JMP	EM0+4
-EM2	DCX	H		;DECREMENT HL
+EM2:	DCX	H		;DECREMENT HL
 	JMP	EM1+5
-EM3	CALL	CONV0		;GET ADDR
+EM3:	CALL	CONV0		;GET ADDR
 	XCHG			;PUT IN HL
 	MVI	C, 10H		;BYTE COUNT
 	CALL	RTHL
@@ -289,7 +351,7 @@ EM3	CALL	CONV0		;GET ADDR
 	JNZ	EM3+9
 	CALL	CRLF
 	JMP	EM3+4
-EM4	CALL	CONV3		;CONVERT BYTE
+EM4:	CALL	CONV3		;CONVERT BYTE
 	RLC			;ROTATE NIBBLE
 	RLC
 	RLC
@@ -298,20 +360,23 @@ EM4	CALL	CONV3		;CONVERT BYTE
 	CALL	INPM
 	CALL	WRITE
 	CALL	CONV3
-;end of page 5
 	ADD	B		;GET NIBBLE
 	MOV	M, A		;STORE
 	JMP	SPACE
-PROG0	CALL	CONV0		;PROGRAM 2708
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;PROG0 -- Program 2708 command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+PROG0:	CALL	CONV0		;PROGRAM 2708
 	XCHG			;SAVE IN HL
 	CALL	CONV0
 	MVI	A, 0A0H		;DO 160X
-PROG1	STA	STK9		;SAVE A
+PROG1:	STA	STK9		;SAVE A
 	PUSH	D
 	PUSH	H
 	LXI	B, 0400H
 	CALL	ESCAP		;WANT TO QUIT?
-PROG2	MOV	A, M		;GET BYTE
+PROG2:	MOV	A, M		;GET BYTE
 	STAX	D		;PLACE IN 2708
 	INX	D
 	CALL	DONE
@@ -321,22 +386,43 @@ PROG2	MOV	A, M		;GET BYTE
 	LDA	STK9		;GET COUNT BYTE
 	DCR	A		;DECREMENT IT
 	JNZ	PROG1		;LOOP
-VER0	LXI	B, 0400H
+VER0:	LXI	B, 0400H
 	JMP	VERFY+6		;VERIFY DATA
-DONE	INX	H
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;DONE -- Handle end condition for some commands
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DONE:	INX	H
 	DCX	B
 	SUB	A
 	ORA	B
 	ORA	C
 	RET
-COMNT	MOV	A, M		;GET BYTE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;COMNT -- Print a high bit terminated string
+;
+;pre: HL points to high bit terminated string
+;post: string is printed to console device
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+COMNT:	MOV	A, M		;GET BYTE
 	CALL	WRITE		;WRITE IT
 	INX	H
 	ORA	A		;BIT 7 HIGH ?
 	JP	COMNT		;NO, LOOP
 	RET
-DELA2	CALL	DELAY		;TWO TIMES
-DELAY	PUSH	B		;SAVE B
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;DELA2 -- Double software delay
+;
+;Calls DELAY then falls through to it on return for 2X.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DELA2:	CALL	DELAY		;TWO TIMES
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;DELAY -- Software delay loop
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DELAY:	PUSH	B		;SAVE B
 	LXI	B, 7000H
 	INX	B
 	SUB	A
@@ -345,20 +431,64 @@ DELAY	PUSH	B		;SAVE B
 	JNZ	DELAY+4
 	POP	B		;RESTORE BC
 	RET
-DELAS	PUSH	B
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;DELAS -- Half software delay
+;
+;This routine performs approximately 1/2 of the delay as
+;DELAY. Returns through DELAY.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DELAS:	PUSH	B
 	LXI	B, 0B800H	;HALF AS MUCH DELAY
 	JMP	DELAY+4
-ISTAT	CALL	CHKST		;GET STATUS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;ISTAT -- Get input device status
+;
+;post: Z flag clear if data available
+;post: Z flag set if data not available
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ISTAT:	CALL	CHKST		;GET STATUS
 	ANI	80H		;BIT 7
 	RZ			;Z= NO DATA
-ICHAR	CALL	INPUT+6		;GET CHAR
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;ICHAR -- Get a character from the console
+;
+;Returns current character from the console device without
+;waiting for a new character. Clears high bit.
+;
+;post: A register contains character from console
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ICHAR:	CALL	INPUT+6		;GET CHAR
 	ANI	7FH		;MASK BIT 7
 	RET
-INPM	CALL	INPUT
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;INPM -- Input masked
+;
+;Waits for a character from the console input device. Clears
+;high bit.
+;
+;post: A register contains character from console
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+INPM:	CALL	INPUT
 	ANI	7FH		;MASK BITS 0-6
 	RET
-INPUT	CALL	ISTAT		;CHECK STATUS
-;end of page 6
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;INPUT -- Read from the console input device
+;
+;This routine handles actual selection of the input device
+;based on the value stored at STK0.
+;
+;A CMA can be added after PIN0 and/or PIN1 for inverted
+;data polarity on primary or secondary parallel port.
+;
+;post: A register contains unmasked byte from console input
+;      device
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+INPUT:	CALL	ISTAT		;CHECK STATUS
 	JZ	INPUT		;LOOP TIL READY
 	LDA	STK0		;INPUT DEVICE
 	ORA	A
@@ -367,16 +497,29 @@ INPUT	CALL	ISTAT		;CHECK STATUS
 	JZ	PIN1		;OTHER PARALLEL INPUT
 	IN	PORTD		;INPUT FROM SERIAL
 	RET
-PIN0	IN	PORT4
+PIN0:	IN	PORT4
 	NOP			;CMA IF INV DATA
 	RET
-PIN	IN	PORT1		;CHECK STATUS
+PIN:	IN	PORT1		;CHECK STATUS
 	ORA	A		;CHECK BIT 7
 	JP	PIN		;LOOP
-PIN1	IN	PORT0
+PIN1:	IN	PORT0
 	NOP			;CMA IF INV DAT
 	RET
-CHKST	LDA	STK0		;CHECK STATUS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;CHKST -- Check console device status
+;
+;This routine handles actual selection of the input device
+;based on the value stored at STK0.
+;
+;When getting status from the serial port, bit 0 is shifted
+;into the CY flag.
+;
+;Check for new character availability from the selected
+;console device.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CHKST:	LDA	STK0		;CHECK STATUS
 	ORA	A
 	JZ	PINS0		;PAR STAT
 	DCR	A
@@ -385,29 +528,56 @@ CHKST	LDA	STK0		;CHECK STATUS
 	IN	PORTC		;SERIAL STATUS
 	RRC			;GET BIT 0
 	RET
-PINS0	IN	PORT5		;STATUS PORT
+PINS0:	IN	PORT5		;STATUS PORT
 	RET
-WRITB	MOV	A, B		;GET DATA
-WRITE	PUSH	PSW		;SAVE A
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;WRITB -- Write value in B register to selected console dev
+;
+;This routine provides Processor Technology software
+;compatibility. Falls through to WRITE. Does not strip high
+;bit.
+;
+;pre: B register contains char to print to console
+;post: contents of B register printed to console
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+WRITB:	MOV	A, B		;GET DATA
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;WRITE -- Write a character to the console
+;
+;This routine handles actual selection of the input device
+;based on the value stored at STK0.
+;
+;Does not strip high bit.
+;
+;pre: A register contains char to print to console
+;post: contents of A register printed to console
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+WRITE:	PUSH	PSW		;SAVE A
 	LDA	STK1		;OUT DEVICE
 	ORA	A
 	JZ	VDM		;VIDEO ROUTINE
 	DCR	A
 	JZ	POUT+1
-SOUT	IN	PORTC
+SOUT:	IN	PORTC
 	ANI	02H		;READY ?
 	JZ	SOUT		;LOOP
 	POP	PSW		;GET A
 	OUT	PORTD
 	RET
-POUT	PUSH	PSW		;SAVE A
+POUT:	PUSH	PSW		;SAVE A
 	IN	PORT7		;CHECK STATUS
 	ORA	A		;BIT 7 HIGH ?
 	JP	POUT+1
 	POP	PSW		;GET A
 	OUT	PORT6
 	RET
-VDM	POP	PSW		;GET A
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;VDM -- Video display routine
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+VDM:	POP	PSW		;GET A
 	PUSH	B		;SAVE REG'S
 	PUSH	D
 	PUSH	H
@@ -418,7 +588,6 @@ VDM	POP	PSW		;GET A
 	CPI	0DH		;CARRIAGE RETURN ?
 	JZ	CR
 	CPI	0AH		;LINE FEED?
-;end of page 7
 	JZ	LF
 	CPI	08H		;A BACKSPACE ?
 	JZ	BS
@@ -429,9 +598,13 @@ VDM	POP	PSW		;GET A
 	ANI	7FH		;POLY-F6 80
 	MOV	M, A		;PUT ON SCREEN
 	INX	H
-VD1	CALL	VD3		;END OF SCREEN?
+VD1:	CALL	VD3		;END OF SCREEN?
 	JC	VD2
-SC1	LDA	STK2		;GET SCROLL SPEED
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SC1 -- Control video scroll speed
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SC1:	LDA	STK2		;GET SCROLL SPEED
 	MOV	D, A
 	MVI	E, 0FFH
 	INX	D
@@ -439,7 +612,7 @@ SC1	LDA	STK2		;GET SCROLL SPEED
 	ORA	D
 	ORA	E		;DONE ?
 	JNZ	SC1+6		;LOOP
-SC2	CALL	ISTAT		;CHANGE SPEED?
+SC2:	CALL	ISTAT		;CHANGE SPEED?
 	JZ	SC3		;NO
 	CPI	20H		;A SPACE?
 	JNZ	$+6
@@ -454,7 +627,7 @@ SC2	CALL	ISTAT		;CHANGE SPEED?
 	RAL
 	ADI	6CH
 	STA	STK2		;STORE SPEED
-SC3	LXI	H, 0CC40H	;START SCROLL
+SC3:	LXI	H, 0CC40H	;START SCROLL
 	LXI	D, 0CC00H	;START OF SCREEN
 	MOV	A, M		;GET BYTE
 	STAX	D		;MOVE IT
@@ -467,21 +640,24 @@ SC3	LXI	H, 0CC40H	;START SCROLL
 	MOV	A, L
 	CPI	0C0H		;DONE ?
 	JNZ	SC3+16
-VD2	MVI	M, 0A0H		;POLY-0FFH
+VD2:	MVI	M, 0A0H		;POLY-0FFH
 	SHLD	STK11		;SAVE POINTER
 	POP	PSW		;RESTORE REG'S
 	POP	H
 	POP	D
 	POP	B
 	RET			;DONE
-VD3	MOV	A, H
+VD3:	MOV	A, H
 	CPI	0D0H		;C7-80X24
 	RET			;RC-80X24
 	MOV	A, L		;GET L
-;end of page 8
 	CPI	80H		;END OF LINE
 	RET
-FF	LXI	H, 0CFFFH	;END OF SCREEN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;FF -- Handle video rubout
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+FF:	LXI	H, 0CFFFH	;END OF SCREEN
 	MVI	M, 20H		;POLY-A0
 	DCX	H
 	MOV	A, H
@@ -489,43 +665,74 @@ FF	LXI	H, 0CFFFH	;END OF SCREEN
 	JNZ	FF+3
 	INX	H
 	JMP	VD2
-CR	MVI	M, 20H		;POLY-A0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;CR -- Handle video carraige return
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CR:	MVI	M, 20H		;POLY-A0
 	MOV	A, L
 	ANI	0C0H
 	MOV	L, A
 	MOV	A, M		;SAVE BYTE
 	STA	STK10
 	JMP	VD2
-;***THE FOLLOWING FOR 80X24***
-	MOV	A, D
+				
+	MOV	A, D		;***THE FOLLOWING FOR 80X24***
 	SBB	H
 	POP	D
 	JC	CR+9
 	MOV	A, M
 	STA	STK10		;SAVE CHAR
 	JMP	VD2
-LF	LDA	STK10		;GET BYTE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;LF -- Handle video linefeed
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+LF:	LDA	STK10		;GET BYTE
 	MOV	M, A		;PUT ON SCREEN
 	LXI	D, 0040H
 	DAD	D		;LINE-FEEDS HL
 	MOV	A, M		;GET BYTE
 	STA	STK10
 	JMP	VD1
-BS	MVI	M, 20H		;POLY-A0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;BS -- Handle video backspace
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+BS:	MVI	M, 20H		;POLY-A0
 	DCX	H
 	JMP	VD1
-HOME	MVI	M, 20H		;POLY-A0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;HOME -- Return to video home location
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+HOME:	MVI	M, 20H		;POLY-A0
 	LXI	H, 0CC00H	;START OF SCREEN
 	JMP	VD2
-CRLF	MVI	A, 0DH		;CARRIAGE RETURN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;CRLF -- Print CR, LF to the selected console device
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CRLF:	MVI	A, 0DH		;CARRIAGE RETURN
 	CALL	WRITE
 	MVI	A, 0AH		;LINE FEED
 	CALL	WRITE
 	RET
-SPACE	MVI	A, 20H		;SPACE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SPACE -- Print a space to the selected console device
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SPACE:	MVI	A, 20H		;SPACE
 	CALL	WRITE
 	RET
-RTHEX	PUSH	PSW
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;RTHEX -- Write a hex character to the console
+;
+;pre: A register contains byte to print
+;post: contents of A register printed to console as hex byte
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+RTHEX:	PUSH	PSW
 	RAR			;GET UPPER NIBBLE
 	RAR
 	RAR
@@ -536,25 +743,50 @@ RTHEX	PUSH	PSW
 	CALL	BINAS
 	CALL	WRITE
 	RET
-BINAS	ANI	0FH		;BIN TO ASCII
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;BINAS -- Convert binary to ASCII
+;
+;pre: A register contains nibble to convert
+;post: A register contains ASCII representation of nibble
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+BINAS:	ANI	0FH		;BIN TO ASCII
 	ADI	30H
-;end of page 9
 	CPI	3AH		;OK?
 	RC			;YES
 	ADI	07H
 	RET			;NOW ITS DONE
-RTHL	MOV	A, H		;WRITE HL
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;RTHL -- Write HL to console as hex
+;
+;pre: HL register contains word to be printed
+;post: HL printed to console as hex
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+RTHL:	MOV	A, H		;WRITE HL
 	CALL	RTHEX
 	MOV	A, L
 	CALL	RTHEX
 	CALL	SPACE
 	RET
-ESCAP	CALL	ICHAR		;GET CHAR
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;ESCAP -- Check for and handle ESC character
+;
+;post: Z flag clear if no ESC char
+;post: COMPLETE printed to console and control returned to
+;      command processor if ESC pressed
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ESCAP:	CALL	ICHAR		;GET CHAR
 	CPI	1BH		;ESCAPE ?
 	RNZ
 	LXI	H, CMNT6
 	JMP	CMPLT+3
-CASR0	IN	PORT2		;IS RELAY ON ?
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;CASR0 -- Cassette read routine
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CASR0:	IN	PORT2		;IS RELAY ON ?
 	ANI	01H
 	JNZ	CASR1
 	IN	PORT2		;GET DATA AT PORT2
@@ -588,17 +820,16 @@ CASR0	IN	PORT2		;IS RELAY ON ?
 	OUT	PORTF
 	MVI	A, 03H		;ENABLE X-MIT
 	OUT	PORTE
-CASR1	CALL	ESCAP		;WANT TO QUIT ?
+CASR1:	CALL	ESCAP		;WANT TO QUIT ?
 	IN	PORTE		;CHECK STATUS
 	ORA	A		;BIT 7 HIGH ?
 	JP	CASR1		;NOT READY
 	IN	PORTF		;GET DATA
 	RET
-CASR2	CALL	CASR0		;GET SA AND LEN
+CASR2:	CALL	CASR0		;GET SA AND LEN
 	MVI	B, 00H		;ZERO CHECKSUM REG
 	MOV	L, A		;PUT ADDRESS IN HL
 	MOV	B, A
-;end of page 10
 	CALL	CASR1
 	MOV	H, A
 	ADD	B
@@ -612,7 +843,7 @@ CASR2	CALL	CASR0		;GET SA AND LEN
 	ADD	B
 	MOV	B, A
 	RET
-CASR3	CALL	CASR1		;GET DATA NOW
+CASR3:	CALL	CASR1		;GET DATA NOW
 	MOV	M, A		;PUT IN MEMORY
 	ADD	B
 	MOV	B, A
@@ -632,9 +863,9 @@ CASR3	CALL	CASR1		;GET DATA NOW
 	CZ	CASR4		;TAPE OK
 	CALL	COMNT
 	JMP	STRT
-CASR4	LXI	H, CMNT4	;COMPLETE
+CASR4:	LXI	H, CMNT4	;COMPLETE
 	RET
-CASR5	CALL	CONV0		;READ AND SPECIFY
+CASR5:	CALL	CONV0		;READ AND SPECIFY
 	XCHG			;SAVE IN H
 	PUSH	H
 	LHLD	STK13
@@ -658,7 +889,6 @@ CASR5	CALL	CONV0		;READ AND SPECIFY
 	MOV	D, A
 	ADD	B
 	MOV	B, A
-;end of page 11
 	INX	H
 	CALL	CASR1
 	MOV	M, A
@@ -667,15 +897,15 @@ CASR5	CALL	CONV0		;READ AND SPECIFY
 	MOV	B, A
 	INX	H
 	JMP	CASR3
-CASR6	CALL	BKLEN+4		;GET 2ND ADDR
+CASR6:	CALL	BKLEN+4		;GET 2ND ADDR
 	MOV	D, B
 	MOV	E, C
 	CALL	CASR0
 	MVI	B, 00H		;ZERO CHECKSUM REG
 	JMP	CASR3+3
-CASR7	CALL	CASR2		;RC PROGRAM
+CASR7:	CALL	CASR2		;RC PROGRAM
 	JMP	CASR3
-CASR8	CALL	CASR2		;RV PROGRAM
+CASR8:	CALL	CASR2		;RV PROGRAM
 	CALL	CASR1
 	CMP	M		;MEMORY SAME AS TAPE?
 	JNZ	VTERR		;ERROR
@@ -688,13 +918,33 @@ CASR8	CALL	CASR2		;RV PROGRAM
 	ORA	E
 	JNZ	CASR8+3
 	JMP	CASR3+14
-VTERR	CALL	END		;SHUT OFF RELAY
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;VTERR -- Handle verify tape error
+;
+;Falls through to ERROR.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+VTERR:	CALL	END		;SHUT OFF RELAY
 	LXI	H, CMNT3
 	CALL	COMNT
-ERROR	CALL	CRLF
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;ERROR -- Handle error condition
+;
+;This routine prints the high bit terminated error string
+;pointed to by HL and returns control to the command
+;processor.
+;
+;Returns through call into CMPLT.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ERROR:	CALL	CRLF
 	LXI	H, CMNT1	;ERROR
 	JMP	CMPLT+3
-END	CALL	ESCAP		;QUIT ?
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;END -- End cassette read
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+END:	CALL	ESCAP		;QUIT ?
 	IN	PORT2		;CHECK LEVEL
 	ORA	A		;BIT 7 HIGH ?
 	JM	END		;LOOP TIL NO LEVEL
@@ -702,7 +952,11 @@ END	CALL	ESCAP		;QUIT ?
 	ANI	0FEH		;MASK RELAY
 	OUT	PORT2		;RESTORE
 	RET
-BKLEN	CALL	CONV0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;BKLEN -- Get block length parameters
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+BKLEN:	CALL	CONV0
 	XCHG			;SAVE IN HL
 	CALL	CONV0
 	INX	D
@@ -713,16 +967,34 @@ BKLEN	CALL	CONV0
 	SBB	H
 	MOV	B, A
 	RET
-ZERO	CALL	BKLEN		;ZERO A MEMORY
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;ZERO -- Zero memory command handler
+;
+;Optionally fills memory with a specified value.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ZERO:	CALL	BKLEN		;ZERO A MEMORY
 	CALL	CONV0		;NO ZERO ?
 	MOV	M, E
 	CALL	DONE
 	JNZ	ZERO+6		;LOOP TIL DONE
-;end of page 12
-CMPLT	LXI	H, CMNT4	;COMPLETE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;CMPLT -- Print complete message and restart monitor
+;
+;This routine prints "COMPLETE" to the console and jmps to
+;STRT to re-initialize the command processor.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CMPLT:	LXI	H, CMNT4	;COMPLETE
 	CALL	COMNT
 	JMP	STRT
-MOVE	CALL	BKLEN		;MOVE A BLOCK OF MEM
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;MOVE -- Move memory command handler
+;
+;Falls through to VERFY.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+MOVE:	CALL	BKLEN		;MOVE A BLOCK OF MEM
 	CALL	CONV0		;GET START ADDR
 	MOV	A, M		;GET BYTE
 	STAX	D		;MOVE A BYTE
@@ -731,7 +1003,11 @@ MOVE	CALL	BKLEN		;MOVE A BLOCK OF MEM
 	JNZ	MOVE+6		;LOOP TIL DONE
 	LXI	H, STK17+2
 	SHLD	STK13
-VERFY	CALL	BKLEN		;VERIFY MEMORY
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;VERFY -- Verify memory command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+VERFY:	CALL	BKLEN		;VERIFY MEMORY
 	CALL	CONV0		;GET ADDRESS
 	CALL	ESCAP		;WANT TO QUIT?
 	LDAX	D
@@ -741,7 +1017,11 @@ VERFY	CALL	BKLEN		;VERIFY MEMORY
 	CALL	DONE
 	JNZ	VERFY+6		;LOOP
 	JMP	CMPLT
-VMERR	PUSH	H		;SAVE H
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;VMERR -- Handle verify memory error
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+VMERR:	PUSH	H		;SAVE H
 	LXI	H, CMNT3
 	CALL	COMNT
 	LXI	H, CMNT1
@@ -756,11 +1036,19 @@ VMERR	PUSH	H		;SAVE H
 	CALL	RTHEX
 	CALL	CRLF
 	JMP	VERFY+14
-RTDE	MOV	A, D		;WRITE DE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;RTDE -- Write contents of DE to console as hex
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+RTDE:	MOV	A, D		;WRITE DE
 	CALL	RTHEX
 	MOV	A, E
 	JMP	RTHL+5
-WC0	CALL	BKLEN		;WC WRITE CASS
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;WC0 -- Write cassette command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+WC0:	CALL	BKLEN		;WC WRITE CASS
 	MOV	A, L		;WRITE ADDRESS
 	MVI	D, 00H		;ZERO CHECKSUM REG
 	CALL	CASW0
@@ -777,8 +1065,7 @@ WC0	CALL	BKLEN		;WC WRITE CASS
 	CALL	CASW0
 	ADD	D
 	MOV	D, A
-WC1	MOV	A, M		;GET MEMORY BYTE
-;end of page 13
+WC1:	MOV	A, M		;GET MEMORY BYTE
 	CALL	CASW0		;OUTPUT
 	ADD	D		;ADD CHECKSUM
 	MOV	D, A		;SAVE IN D
@@ -790,7 +1077,11 @@ WC1	MOV	A, M		;GET MEMORY BYTE
 	LXI	H, CMNT5	;WRITTEN
 	CALL	COMNT
 	JMP	STRT
-CASW0	PUSH	PSW		;SAVE A
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;CASW0 -- Cassette write routine
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CASW0:	PUSH	PSW		;SAVE A
 	IN	PORT2		;IS WRITE RELAY ON
 	ANI	02H
 	JNZ	CASW1
@@ -820,14 +1111,14 @@ CASW0	PUSH	PSW		;SAVE A
 	CALL	CASW0
 	MVI	A, 0E6H		;OUTPUT SYNC BYTE
 	CALL	CASW0
-CASW1	CALL	ESCAP
+CASW1:	CALL	ESCAP
 	IN	PORTE		;STATUS
 	ANI	40H		;READY ?
 	JZ	CASW1
 	POP	PSW		;GET A
 	OUT	PORTF		;OUTPTU
 	RET
-CASW2	CALL	DELAS		;WRITE A TRAILER
+CASW2:	CALL	DELAS		;WRITE A TRAILER
 	MVI	A, 70H		;TURN OFF CLOCK
 	OUT	PORTB
 	CALL	DELAY		;WRITE A GAP
@@ -835,10 +1126,13 @@ CASW2	CALL	DELAS		;WRITE A TRAILER
 	ANI	0FDH		;TURN OFF RELAY
 	OUT	PORT2
 	RET
-AI0	LHLD	STK13		;SET INPUT DEVICE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;AI0 -- Assign input device command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+AI0:	LHLD	STK13		;SET INPUT DEVICE
 	CALL	CHCK
 	MVI	B, 00H
-;end of page 14
 	CPI	0BH		;K FOR KEYBD
 	JZ	AI1
 	INR	B
@@ -847,10 +1141,14 @@ AI0	LHLD	STK13		;SET INPUT DEVICE
 	INR	B
 	CPI	13H		;S FOR SERIAL
 	JNZ	ERROR		;NO GOOD
-AI1	MOV	A, B
+AI1:	MOV	A, B
 	STA	STK0		;INPUT DEVICE CODE
 	JMP	STRT
-AO0	LHLD	STK13		;ASSIGN OUTPUT DEVICE
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;AO0 -- Assign output device command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+AO0:	LHLD	STK13		;ASSIGN OUTPUT DEVICE
 	CALL	CHCK
 	MVI	B, 00H		;ZERO B
 	CPI	16H		;V for VDM
@@ -861,18 +1159,30 @@ AO0	LHLD	STK13		;ASSIGN OUTPUT DEVICE
 	INR	B
 	CPI	13H		;S FOR SERIAL
 	JNZ	ERROR		;NO GOOD
-AO1	MOV	A, B
+AO1:	MOV	A, B
 	STA	STK1		;OUTPUT DEVICE CODE
 	JMP	STRT
-SR	CALL	CONV0		;CASS READ SPEED
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SR -- Set cassette read speed command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SR:	CALL	CONV0		;CASS READ SPEED
 	XCHG			;PUT IN HL
 	SHLD	STK3
 	JMP	STRT
-SW	CALL	CONV0		;CASS WRITE SPEED
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SW -- Set cassette write speed handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SW:	CALL	CONV0		;CASS WRITE SPEED
 	XCHG			;PUT IN HL
 	SHLD	STK5
 	JMP	STRT
-SS	CALL	CONV0		;SERIAL SPEED
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SS -- Set serial port speed command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SS:	CALL	CONV0		;SERIAL SPEED
 	MOV	A, E
 	OUT	PORTA
 	MOV	A, D
@@ -880,12 +1190,16 @@ SS	CALL	CONV0		;SERIAL SPEED
 	XCHG
 	SHLD	STK7
 	JMP	STRT
-DA0	CALL	BKLEN		;GET LENGTH
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;DA0 -- Dump ASCII command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DA0:	CALL	BKLEN		;GET LENGTH
 	CALL	CRLF
 	MVI	D, 08H		;SET BYTE COUNTER
 	CALL	RTHL		;WRITE ADDRESS
 	CALL	SPACE
-DA1	CALL	SPACE
+DA1:	CALL	SPACE
 	MOV	A, M		;GET MEMORY
 	CALL	RTHEX		;WRITE IT
 	INX	H
@@ -895,10 +1209,9 @@ DA1	CALL	SPACE
 	DAD	D		;SUB H BY 9
 	MVI	D, 08H		;SET BYTE COUNTER
 	CALL	SPACE
-DA2	CALL	SPACE
+DA2:	CALL	SPACE
 	MOV	A, M		;GET BYTE
 	ANI	7FH		;MASK BIT 7
-;end of page 15
 	CPI	20H
 	JC	SKIP		;NOT CHAR
 	CPI	5EH
@@ -907,15 +1220,19 @@ DA2	CALL	SPACE
 	JC	SKIP		;NOT CHAR
 	CPI	7BH
 	JC	PRINT		;STILL ASCII
-SKIP	MVI 	A, '.'		;OUTPUT A '.'
-PRINT	CALL	WRITE		;OUTPUT
+SKIP:	MVI 	A, '.'		;OUTPUT A '.'
+PRINT:	CALL	WRITE		;OUTPUT
 	CALL	DONE
 	JZ	CMPLT		;DONE
 	DCR	D		;DECREMENT BYTE COUNT
 	JNZ	DA2		;LOOP
 	CALL	ESCAP		;WANT TO QUIT ?
 	JMP	DA0+3		;CONTINUE
-HEX	CALL	BKLEN		;GET ADDR
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;HEX -- Hex math command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+HEX:	CALL	BKLEN		;GET ADDR
 	DCX	D
 	DAD	D
 	CALL	RTHL
@@ -924,12 +1241,16 @@ HEX	CALL	BKLEN		;GET ADDR
 	MOV	L, C
 	CALL	RTHL
 	JMP	STRT
-SERCH	CALL	BKLEN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SERCH -- Search memory command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SERCH:	CALL	BKLEN
 	XCHG			;PUT H IN D
 	LHLD	STK13		;GET BUFF
 	PUSH	H		;PUT ON STACK
 	XCHG			;RESTORE H
-CMPR0	DCX	H
+CMPR0:	DCX	H
 	INX	B
 	XCHG			;PUT H IN D
 	POP	H		;GET BUFF
@@ -939,7 +1260,7 @@ CMPR0	DCX	H
 	PUSH	H
 	POP	D		;PUT H IN D
 	INX	D
-CMPR1	CALL	DONE
+CMPR1:	CALL	DONE
 	JZ	CMPLT
 	PUSH	H
 	LHLD	STK13
@@ -954,25 +1275,32 @@ CMPR1	CALL	DONE
 	CMP	M		;COMPARE
 	JZ	CMPR1		;GOOD
 	JMP	CMPR0+2
-CMPR2	CALL	ESCAP		;QUIT ?
+CMPR2:	CALL	ESCAP		;QUIT ?
 	XCHG			;GET H
 	CALL	RTHL		;WRITE ADDR
 	CALL	CRLF
-;end of page 16
 	XCHG			;RESTORE H
 	JMP	CMPR0
-INP0	CALL	CONV0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;INP0 -- Input from port command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+INP0:	CALL	CONV0
 	LXI	H, STK17+20	;BUFFER AREA
 	MVI	M, 0DBH
 	INX	H
 	MOV	M, E
 	INX	H
 	MVI	M, 0C9H
-INP1	CALL	STK17+20	;EXECUTE IT
+INP1:	CALL	STK17+20	;EXECUTE IT
 	CALL	RTHEX
 	CALL	DOAGN
 	JMP	INP1		;DO AGAIN
-OUT0	CALL	BKLEN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;OUT0 -- Output to port command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+OUT0:	CALL	BKLEN
 	DCR	E
 	MOV	C, L
 	LXI	H, STK17+20	;BUFFER AREA
@@ -983,15 +1311,26 @@ OUT0	CALL	BKLEN
 	MOV	M, C
 	INX	H
 	MVI	M, 0C9H
-OUT1	CALL	STK17+20	;EXECUTE IT
+OUT1:	CALL	STK17+20	;EXECUTE IT
 	CALL	DOAGN		;DO AGAIN?
 	JMP	OUT1
-DOAGN	CALL	INPM
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;DOAGN -- Check for repeat of previous operation
+;
+;Check to see if the previous operation should be repeated.
+;This routine is used by the D, I, and O commands.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DOAGN:	CALL	INPM
 	CPI	20H		;A SPACE?
 	JNZ	CMPLT		;DONE
 	CALL	CRLF
 	RET
-DM0	CALL	CONV0
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;DM0 -- Hex dump memory command handler
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+DM0:	CALL	CONV0
 	XCHG
 	CALL	RTHL
 	MVI	C, 10H
@@ -1003,8 +1342,33 @@ DM0	CALL	CONV0
 	JNZ	DM0+9
 	CALL	DOAGN		;REPEAT?
 	JMP	DM0+4
-;***COMMAND LOOK-UP TABLE***
-TABL1	DB	11H		;AI
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;TABL1 -- Command look-up table
+;
+;This table contains the packed ASCII command definitions
+;and pointers to the command handlers.
+:
+;PACKED ASCII FORMAT:
+;
+;For single character commands:
+;        - Multiply by 8 and discard overflow
+;
+;        D = 0x44 * 8
+;          = 0x220
+;          = 0x20
+;
+;For two character commands:
+;        - Multiply the first character by 8, subtract 0x20
+;        - Subtract 0x20 from the first character
+;        - Add the two values and discard overflow
+;
+;       DA = 0x44 0x41
+;          = ((0x44 * 8) - 0x20) + (0x41 - 0x20)
+;          = 0x221
+;          = 0x21
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+TABL1:	DB	11H		;AI
 	DW	AI0
 	DB	17H		;AO
 	DW	AO0
@@ -1018,7 +1382,6 @@ TABL1	DB	11H		;AI
 	DW	EM3
 	DB	30H		;F
 	DB	03		;FLOPPY BOOT
-;end of page 17
 	DB	PORT+08H
 	DB	38H		;G
 	DW	GO
@@ -1062,22 +1425,32 @@ TABL1	DB	11H		;AI
 	DW	ERROR		;NOT IMPLEMENTED
 	DB	0D0H		;Z
 	DW	ZERO
-;***INITIAL MODE TABLE***
-TABL2	DB	0F0H		;SCROLL SPEED
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;TABL2 -- Initial mode table
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+TABL2:	DB	0F0H		;SCROLL SPEED
 	DB	59H		;CASS READ SPEED
 	DB	02H		;2500 BAUD
 	DB	20H		;CASS WRITE SPEED
 	DB	03H		;2500 BAUD
 	DB	70H		;SERIAL SPEED
 	DB	04H		;110 BAUD
-CMNT6	DB	'ESCAP', 0C5H
-CMNT5	DB	'WRITTE', 0CEH
-CMNT4	DB	'  COMPLET', 0C5H
-;end of page 18
-CMNT3	DB	'VERIFY', 0A0H
-CMNT2	DB	'TAPE '
-CMNT1	DB	' ERROR', 0A0H
-CMNT0	DB	0DH, 0AH, '>', 0A0H
 
-;***END OF PRESENT ASSEMBLY***
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Monitor Strings
+;
+;All strings are terminated by setting the high bit of the
+;last character.
+;
+;CMNT0 is the prompt string.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+CMNT6:	DB	'ESCAP', 0C5H
+CMNT5:	DB	'WRITTE', 0CEH
+CMNT4:	DB	'  COMPLET', 0C5H
+CMNT3:	DB	'VERIFY', 0A0H
+CMNT2:	DB	'TAPE '
+CMNT1:	DB	' ERROR', 0A0H
+CMNT0:	DB	0DH, 0AH, '>', 0A0H
+
 	END
