@@ -1,3 +1,6 @@
+	PAGE	60
+	TITLE	"Dajen SCI Monitor Version 1.6"
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;MONITOR16 -- Dajen SCI ROM Monitor v1.6
 ;
@@ -11,10 +14,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Default ROM start address is 0xD000.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ROMBASE	equ	0D000H		;ROM starting address
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;Monitor Equates
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-PORT	EQU	0D0H		;PORT LOCATION
-STACK	EQU	0DFC0H		;STACK LOCATION
+PORT	EQU	HIGH (ROMBASE)	;PORT LOCATION
+STACK	EQU	ROMBASE+0FC0H	;STACK LOCATION
 STK0	EQU	STACK+4		;INP DEV CODE
 STK1	EQU	STACK+5		;OUT DEV CODE
 STK2	EQU	STACK+6		;SCROLL SPEED
